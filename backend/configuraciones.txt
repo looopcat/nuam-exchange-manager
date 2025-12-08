@@ -1,0 +1,6 @@
+Para que este código funcione, instalar libreria:
+pip install pymongo sqlalchemy pymysql bcrypt
+
+Asegurarse que servidores MongoDB (puerto 27017) y 
+MySQL estén corriendo 
+y que la base de datos Nuam exista en MySQL.
