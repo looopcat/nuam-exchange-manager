@@ -1,5 +1,5 @@
-# app.py - Backend FastAPI para NUAM Exchange
-from fastapi import FastAPI, HTTPException, Depends
+# app.py - VERSIÓN CORREGIDA
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -13,16 +13,15 @@ import random
 
 app = FastAPI(title="NUAM Exchange API", version="1.0.0")
 
-# Configurar CORS para que React pueda conectarse
+# Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"],  # Puertos comunes de React/Vite
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Simulación de sesión (en producción usarías JWT o similar)
 sesiones_activas = {}
 
 # ============= MODELOS PYDANTIC =============
@@ -39,7 +38,7 @@ class LoginResponse(BaseModel):
 
 class OrdenRequest(BaseModel):
     instrumento: str
-    tipo: str  # "Compra" o "Venta"
+    tipo: str
     cantidad: int
     precioLimite: Optional[float] = None
 
@@ -50,10 +49,20 @@ class OrdenResponse(BaseModel):
     transaccion: Optional[dict] = None
 
 class TarifaRequest(BaseModel):
-    bolsa: str  # "CL", "PE", "CO"
+    bolsa: str
     tarifa_base: float
 
-# ============= FUNCIONES AUXILIARES =============
+# ============= FUNCIÓN PARA OBTENER TOKEN =============
+
+def get_session_token(authorization: Optional[str] = Header(None)):
+    """Extrae el token del header Authorization"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Token de sesión no proporcionado")
+    
+    # Espera formato: "Bearer token_aqui"
+    if authorization.startswith("Bearer "):
+        return authorization.replace("Bearer ", "")
+    return authorization
 
 def get_current_user(session_token: str):
     """Valida el token de sesión y retorna el usuario"""
@@ -79,7 +88,6 @@ async def login(request: LoginRequest):
             message="Usuario no encontrado"
         )
     
-    # Verificar contraseña
     password_hash = bytes(usuario['password'])
     if not bcrypt.checkpw(request.password.encode(), password_hash):
         return LoginResponse(
@@ -87,7 +95,6 @@ async def login(request: LoginRequest):
             message="Contraseña incorrecta"
         )
     
-    # Crear sesión (en producción usarías JWT)
     session_token = f"session_{usuario['username']}_{datetime.now().timestamp()}"
     
     user_data = {
@@ -107,7 +114,7 @@ async def login(request: LoginRequest):
     )
 
 @app.post("/api/logout")
-async def logout(session_token: str):
+async def logout(session_token: str = Depends(get_session_token)):
     """Cerrar sesión"""
     if session_token in sesiones_activas:
         user = sesiones_activas[session_token]
@@ -118,14 +125,16 @@ async def logout(session_token: str):
 # ============= RUTAS DE OPERADOR =============
 
 @app.post("/api/orden", response_model=OrdenResponse)
-async def colocar_orden(request: OrdenRequest, session_token: str):
+async def colocar_orden(
+    request: OrdenRequest, 
+    session_token: str = Depends(get_session_token)
+):
     """Colocar una orden de compra/venta"""
     user = get_current_user(session_token)
     
     if user['rol'] not in ['Operador', 'Admin']:
         raise HTTPException(status_code=403, detail="No tiene permisos para colocar órdenes")
     
-    # Validaciones
     if request.tipo not in ['Compra', 'Venta']:
         return OrdenResponse(success=False, message="Tipo de orden inválido")
     
@@ -134,7 +143,6 @@ async def colocar_orden(request: OrdenRequest, session_token: str):
     
     precio_final = request.precioLimite if request.precioLimite and request.precioLimite > 0 else None
     
-    # Registrar orden en MySQL
     nueva_orden = Orden(
         idUsuario=user['idUsuario'],
         tipo=request.tipo,
@@ -157,7 +165,6 @@ async def colocar_orden(request: OrdenRequest, session_token: str):
             "fechaCreacion": nueva_orden.fechaCreacion.isoformat()
         }
         
-        # Simulación de ejecución (70% de probabilidad)
         transaccion_data = None
         if random.random() < 0.7:
             precio_ejecucion = precio_final if precio_final else round(random.uniform(90.00, 100.00), 2)
@@ -196,7 +203,10 @@ async def colocar_orden(request: OrdenRequest, session_token: str):
         )
 
 @app.get("/api/ordenes")
-async def obtener_ordenes(session_token: str, limite: int = 20):
+async def obtener_ordenes(
+    limite: int = 20,
+    session_token: str = Depends(get_session_token)
+):
     """Obtener las últimas órdenes del usuario"""
     user = get_current_user(session_token)
     
@@ -224,7 +234,10 @@ async def obtener_ordenes(session_token: str, limite: int = 20):
 # ============= RUTAS DE ADMINISTRADOR =============
 
 @app.get("/api/reportes")
-async def ver_reportes(session_token: str, limite: int = 10):
+async def ver_reportes(
+    limite: int = 10,
+    session_token: str = Depends(get_session_token)
+):
     """Ver reporte consolidado de transacciones (Solo Admin)"""
     user = get_current_user(session_token)
     
@@ -254,7 +267,10 @@ async def ver_reportes(session_token: str, limite: int = 10):
         }
 
 @app.post("/api/tarifas")
-async def configurar_tarifas(request: TarifaRequest, session_token: str):
+async def configurar_tarifas(
+    request: TarifaRequest,
+    session_token: str = Depends(get_session_token)
+):
     """Configurar tarifas de mercado (Solo Admin)"""
     user = get_current_user(session_token)
     
@@ -282,7 +298,7 @@ async def configurar_tarifas(request: TarifaRequest, session_token: str):
     }
 
 @app.get("/api/tarifas")
-async def obtener_tarifas(session_token: str):
+async def obtener_tarifas(session_token: str = Depends(get_session_token)):
     """Obtener tarifas configuradas"""
     user = get_current_user(session_token)
     
@@ -298,7 +314,7 @@ async def obtener_tarifas(session_token: str):
         "tarifas": tarifas
     }
 
-# ============= RUTA DE PRUEBA =============
+# ============= RUTAS DE PRUEBA =============
 
 @app.get("/")
 async def root():
@@ -314,23 +330,19 @@ async def health_check():
     mongo_ok = False
     mysql_ok = False
     
-    # Test MongoDB
     try:
         db = get_mongodb()
         if db is not None:
             mongo_ok = True
     except Exception as e:
         print(f"Health check MongoDB error: {e}")
-        mongo_ok = False
     
-    # Test MySQL
     try:
         with get_mysql_session() as session:
             session.execute(text("SELECT 1"))
             mysql_ok = True
     except Exception as e:
         print(f"Health check MySQL error: {e}")
-        mysql_ok = False
     
     return {
         "mongodb": "connected" if mongo_ok else "disconnected",

@@ -6,6 +6,15 @@ const getSessionToken = () => {
   return localStorage.getItem("session_token");
 };
 
+// Helper function to get auth headers
+const getAuthHeaders = () => {
+  const token = getSessionToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token && { "Authorization": `Bearer ${token}` })
+  };
+};
+
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   try {
@@ -53,13 +62,9 @@ export const authAPI = {
    * @returns {Promise<{success, message}>}
    */
   logout: async () => {
-    const session_token = getSessionToken();
     const response = await fetch(`${API_BASE_URL}/logout`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ session_token }),
+      headers: getAuthHeaders(),
     });
     
     localStorage.removeItem("session_token");
@@ -72,7 +77,7 @@ export const authAPI = {
    * @returns {Promise<{mongodb, mysql, status}>}
    */
   healthCheck: async () => {
-    const response = await fetch(`${API_BASE_URL}/health`);
+    const response = await fetch(`http://localhost:8000/health`);
     return handleResponse(response);
   },
 };
@@ -87,14 +92,10 @@ export const ordenesAPI = {
    * @returns {Promise<{success, message, orden, transaccion}>}
    */
   placeOrder: async (instrumento, tipo, cantidad, precioLimite = null) => {
-    const session_token = getSessionToken();
     const response = await fetch(`${API_BASE_URL}/orden`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
-        session_token,
         instrumento,
         tipo,
         cantidad,
@@ -111,9 +112,12 @@ export const ordenesAPI = {
    * @returns {Promise<{success, ordenes}>}
    */
   getOrders: async (limite = 20) => {
-    const session_token = getSessionToken();
     const response = await fetch(
-      `${API_BASE_URL}/ordenes?session_token=${session_token}&limite=${limite}`
+      `${API_BASE_URL}/ordenes?limite=${limite}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
     );
     
     return handleResponse(response);
@@ -127,9 +131,12 @@ export const adminAPI = {
    * @returns {Promise<{success, transacciones}>}
    */
   getReports: async (limite = 10) => {
-    const session_token = getSessionToken();
     const response = await fetch(
-      `${API_BASE_URL}/reportes?session_token=${session_token}&limite=${limite}`
+      `${API_BASE_URL}/reportes?limite=${limite}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
     );
     
     return handleResponse(response);
@@ -142,14 +149,10 @@ export const adminAPI = {
    * @returns {Promise<{success, message}>}
    */
   configureTarifas: async (bolsa, tarifa_base) => {
-    const session_token = getSessionToken();
     const response = await fetch(`${API_BASE_URL}/tarifas`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
-        session_token,
         bolsa,
         tarifa_base,
       }),
@@ -163,10 +166,10 @@ export const adminAPI = {
    * @returns {Promise<{success, tarifas}>}
    */
   getTarifas: async () => {
-    const session_token = getSessionToken();
-    const response = await fetch(
-      `${API_BASE_URL}/tarifas?session_token=${session_token}`
-    );
+    const response = await fetch(`${API_BASE_URL}/tarifas`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
     
     return handleResponse(response);
   },

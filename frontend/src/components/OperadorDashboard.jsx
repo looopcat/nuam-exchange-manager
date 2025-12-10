@@ -130,7 +130,7 @@ export default function OperadorDashboard({ user, onLogout }) {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'white', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', height: '100vh', background: 'white', flexDirection: 'column' }}>
       {/* Header */}
       <div style={{
         position: 'fixed',
@@ -145,7 +145,8 @@ export default function OperadorDashboard({ user, onLogout }) {
         justifyContent: 'space-between',
         paddingLeft: 24,
         paddingRight: 24,
-        zIndex: 100
+        zIndex: 100,
+        boxSizing: 'border-box',
       }}>
         {/* Logo */}
         <img 
@@ -184,16 +185,18 @@ export default function OperadorDashboard({ user, onLogout }) {
       <div style={{
         display: 'flex',
         marginTop: 79,
-        minHeight: 'calc(100vh - 79px)',
-        width: '100%',
+        height: 'calc(100vh - 79px)',
+        width: '100vw',
+        boxSizing: 'border-box',
       }}>
         {/* Left Section - Bolsa Selector & Content */}
         <div style={{
-          width: '384px',
+          flex: 1,
           background: '#FF5F1F',
           padding: 24,
           overflowY: 'auto',
           flexShrink: 0,
+          boxSizing: 'border-box',
         }}>
           <div style={{
             marginBottom: 32,
@@ -281,6 +284,7 @@ export default function OperadorDashboard({ user, onLogout }) {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
+          boxSizing: 'border-box',
         }}>
           {showCreateForm ? (
             <div style={{
@@ -554,7 +558,7 @@ export default function OperadorDashboard({ user, onLogout }) {
 
         {/* Right Section - My Orders */}
         <div style={{
-          width: '320px',
+          flex: 1,
           background: '#FF5F1F',
           padding: 24,
           overflowY: 'auto',
@@ -562,6 +566,7 @@ export default function OperadorDashboard({ user, onLogout }) {
           borderLeft: '1px solid rgba(0,0,0,0.1)',
           display: 'flex',
           flexDirection: 'column',
+          boxSizing: 'border-box',
         }}>
           <div style={{
             marginBottom: 24,
